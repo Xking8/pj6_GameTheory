@@ -44,6 +44,26 @@ public:
 	 * apply an action to the board
 	 * return the reward gained by the action, or -1 if the action is illegal
 	 */
+	int fibdriver(int n) const{
+		if (n>=2)
+			n++;
+		return fib(n);
+	}
+	int fib(int n) const{
+		//n++;
+		if(n==0)
+			return 0;
+		if(n==1)
+			return 1;
+		return (fib(n-1)+fib(n-2));
+	}
+	/*int getfib(int n) const{
+		if(n==0)
+			return 0;
+		if(n==1)
+			return 1;
+		return (getfib(n-1)+getfib(n-2));
+	}*/
 	int move(const int& opcode) {
 		switch (opcode) {
 		case 0: return move_up();
@@ -65,11 +85,19 @@ public:
 				if (tile == 0) continue;
 				row[c] = 0;
 				if (hold) {
-					if (tile == hold) {
+					if ( (tile == hold+1) || (tile==1&&hold==1)) {
 						row[top++] = ++tile;
-						score += (1 << tile);
+						
+						score += fibdriver(tile);//(1 << tile);//Modifiy here
+						//std::cout<<"tile: "<<tile<<" fib: "<<fib(tile)<<std::endl;
 						hold = 0;
-					} else {
+					} 
+					else if (tile == hold-1) {
+						row[top++] = ++hold;
+						score += fibdriver(hold);//(1 << tile);//Modifiy here
+						hold = 0;
+					}	
+					else {
 						row[top++] = hold;
 						hold = tile;
 					}
@@ -141,14 +169,23 @@ public:
 
 public:
     friend std::ostream& operator <<(std::ostream& out, const board& b) {
+		//char buff[32];
 		char buff[64];
 		out << "+------------------------+" << std::endl;
-		for (int r = 0; r < 4; r++) {
+/*		for (int r = 0; r < 4; r++) {
 			std::snprintf(buff, sizeof(buff), "|%6u%6u%6u%6u|",
 				(1 << b[r][0]) & -2u, // use -2u (0xff...fe) to remove the unnecessary 1 for (1 << 0)
 				(1 << b[r][1]) & -2u,
 				(1 << b[r][2]) & -2u,
 				(1 << b[r][3]) & -2u);
+			out << buff << std::endl;
+		}*/
+		for (int r = 0; r < 4; r++) {
+			std::snprintf(buff, sizeof(buff), "|%6u%6u%6u%6u|",
+				(b.fibdriver(b[r][0])), // use -2u (0xff...fe) to remove the unnecessary 1 for (1 << 0)
+				(b.fibdriver(b[r][1])),
+				(b.fibdriver(b[r][2])),
+				(b.fibdriver(b[r][3])));
 			out << buff << std::endl;
 		}
 		out << "+------------------------+" << std::endl;

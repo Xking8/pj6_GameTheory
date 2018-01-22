@@ -8,7 +8,10 @@
 #include "board.h"
 #include "action.h"
 #include "weight.h"
+#include "limits.h"
+#include <unistd.h>
 
+using namespace std;
 class agent {
 public:
 	agent(const std::string& args = "") {
@@ -52,21 +55,127 @@ public:
 	rndenv(const std::string& args = "") : agent("name=rndenv role=environment " + args) {
 		if (property.find("seed") != property.end())
 			engine.seed(int(property["seed"]));
+		if (property.find("load") != property.end())
+			load_weights(property["load"]);
+		else {
+			weights.push_back(std::pow(24,4));//weights[0]
+			weights.push_back(std::pow(24,4));//weights[1]
+			weights.push_back(std::pow(24,4));//weights[2]
+			weights.push_back(std::pow(24,4));//weights[3]
+			weights.push_back(std::pow(24,4));//weights[4]
+			weights.push_back(std::pow(24,4));//weights[5]
+			weights.push_back(std::pow(24,4));//weights[6]
+			weights.push_back(std::pow(24,4));//weights[7]
+		}
 	}
-
 	virtual action take_action(const board& after) {
+		int space[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 };
+		std::shuffle(space, space + 16, engine);
+
+		std::uniform_int_distribution<int> popup(0, 3);
+		int tile = popup(engine) ? 1 : 3;
+
+		int min = INT_MAX;
+		int min_position = -1;
+		
+		//cout<<"*************************new"<<endl;
+		for (int pos : space) {
+			//cout<<"considering "<<pos<<endl;
+			if (after(pos) != 0)
+			{
+				//cout<<"not choosing because is"
+				continue;
+			}
+			board sim_before = after;
+			action env_move = action::place(tile,pos);
+			env_move.apply(sim_before);  //check invalid?
+			//int opcode = ((tile<<4)|(pos));
+			//sim_before(opcode & 0x0f) = (opcode >> 4);
+			int max = INT_MIN;
+			int max_action = 0;
+			for (int i=0;i<4;i++)
+			{
+				double value = evaluate(sim_before,i);
+				if (value > max)
+				{
+					max = value;
+					max_action = i;
+				}
+			}
+			if (max < min)
+			{
+				min = max;
+				min_position = pos;
+			}
+			//usleep(10000);
+			//return action::place(tile, min_position);
+		}
+		if (min_position != -1)
+			return action::place(tile, min_position);
+		return action();
+	}
+	double evaluate(const board& before, int act)
+	{
+		board after = before;
+		double reward = compute_afterstate(after,act);
+	}
+	double compute_afterstate(board& after, int act) {
+		
+		int reward = after.move(act);
+		//if reward !=-1 ... intermediate reward
+		return reward;
+	}
+	double approx(board& after) {
+		//...
+		//std::cout<<after;
+		//fflush(stdout);
+		double appr = 0;
+		for(int i=0;i<4;i++) {
+			long long index = 0;
+			for(int j=0;j<4;j++) {
+				index += after[i][j]*std::pow(24,3-j);
+				
+			}
+			appr += weights[i][index];
+			//after[0][0]*std::pow(24,3)
+		}
+		for(int i=0;i<4;i++) {
+			long long index = 0;
+			for(int j=0;j<4;j++) {
+				index += after[j][i]*std::pow(24,3-j);
+				
+			}
+			appr += weights[i+4][index];
+			//after[0][0]*std::pow(24,3)
+		}
+		return appr;
+	}
+	virtual void load_weights(const std::string& path) {
+		//std::cout<<"evil reading weights"<<std::endl;
+		std::ifstream in;
+		in.open(path.c_str(), std::ios::in | std::ios::binary);
+		if (!in.is_open()) std::exit(-1);
+		size_t size;
+		in.read(reinterpret_cast<char*>(&size), sizeof(size));
+		weights.resize(size);
+		for (weight& w : weights)
+			in >> w;
+		in.close();
+	}
+	/*virtual action take_action(const board& after) {
 		int space[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 };
 		std::shuffle(space, space + 16, engine);
 		for (int pos : space) {
 			if (after(pos) != 0) continue;
 			std::uniform_int_distribution<int> popup(0, 9);
-			int tile = popup(engine) ? 1 : 2; // TODO: tile = int(property["tile"]);
+			int tile = popup(engine) ? 1 : 2;
 			return action::place(tile, pos);
 		}
 		return action();
-	}
+	}*/
 
 private:
+	std::vector<weight> weights;
 	std::default_random_engine engine;
 };
 
